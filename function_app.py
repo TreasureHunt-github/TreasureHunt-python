@@ -19,7 +19,29 @@ def ReadGameInstance(req: func.HttpRequest) -> func.HttpResponse:
     if name:
         return func.HttpResponse(f"Hello, {name}. This HTTP triggered function executed successfully.")
     else:
-        return func.HttpResponse(
-             "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
-             status_code=200
-        )
+        logging.info(f"Response - ${response.reason}")
+        raise HTTPException(status_code=response.status_code,
+                            detail=response.reason)
+
+
+# Subscription
+
+def IsSubscriptionCorrect(sub):
+    if sub != subscription_key:
+        raise HTTPException(
+            status_code=401, detail="Incorrect subscription key")
+
+
+@app.post("/readGameInstance")
+async def ReadExamAttempts(gameInstance: GameInstanceModel, Subscription: str = Header(..., convert_underscores=False)):
+    IsSubscriptionCorrect(Subscription)
+
+    payload = {
+        "gameInstanceId": gameInstance.gameId
+    }
+
+    DBRequest("POST", "https://westeurope.azure.data.mongodb-api.com/app/application-0-wdobenl/endpoint/api/readGameInstance", payload)
+
+
+async def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
+    return await func.AsgiMiddleware(app).handle_async(req)
